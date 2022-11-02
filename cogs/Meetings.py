@@ -19,7 +19,7 @@ from nextcord import (Button, ButtonStyle, ClientUser, Colour,
 from nextcord.ext import commands
 
 GOOGLE_CREDITENTIALS = eval(env['GOOGLE_CREDITENTIALS'])
-GOOGLE_TOKEN = None
+GOOGLE_TOKEN = eval(env['GOOGLE_TOKEN'])
 SCOPES = [env['SCOPES'],]
 GOOGLE_CALENDAR_ID = env['GOOGLE_CALENDAR_ID']
 
