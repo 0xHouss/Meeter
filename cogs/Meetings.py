@@ -18,6 +18,8 @@ from nextcord import (Button, ButtonStyle, ClientUser, Colour,
 
 from nextcord.ext import commands
 
+GOOGLE_CREDITENTIALS = eval(env['GOOGLE_CREDITENTIALS'])
+GOOGLE_TOKEN = None
 SCOPES = [env['SCOPES'],]
 GOOGLE_CALENDAR_ID = env['GOOGLE_CALENDAR_ID']
 
@@ -46,21 +48,20 @@ def get_weekday(number: int) -> str:
 def get_creds() -> Union[Credentials, None]:
     creds = None
 
-    if path.exists('auth/token.json'):
-        creds = Credentials.from_authorized_user_file(
-                'auth/token.json', SCOPES)
+    if GOOGLE_TOKEN:
+        creds = Credentials.from_authorized_user_info(GOOGLE_TOKEN, SCOPES)
 
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'auth/credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_config(
+                GOOGLE_CREDITENTIALS, SCOPES)
             creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-        with open('auth/token.json', 'w') as token:
-            token.write(creds.to_json())
+        """with open('auth/token.json', 'w') as token:
+            token.write(creds.to_json())"""
 
     if isinstance(creds, Credentials):
         return creds
@@ -626,8 +627,7 @@ class Meetings(commands.Cog):
                              color=Colour.blue())
 
         await interaction.channel.purge() #type: ignore
-        # type: ignore
-        await interaction.channel.send(embed=meetingEmbed, view=MeetingView())
+        await interaction.channel.send(embed=meetingEmbed, view=MeetingView()) #type: ignore
 
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
