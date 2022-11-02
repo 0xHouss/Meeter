@@ -62,4 +62,4 @@ for filename in os.listdir("./cogs"):
 		print(f"cogs: {filename[:-3]} cog loaded.")
 
 if __name__ == '__main__':
-	client.run(env["BOT_TOKEN"])
+	client.run(env["DISCORD_TOKEN"])

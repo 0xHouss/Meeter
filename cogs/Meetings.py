@@ -18,18 +18,16 @@ from nextcord import (Button, ButtonStyle, ClientUser, Colour,
 
 from nextcord.ext import commands
 
-SCOPES = eval(env['SCOPES'])
-CALENDAR_ID = env['CALENDAR_ID']
+SCOPES = [env['SCOPES'],]
+GOOGLE_CALENDAR_ID = env['GOOGLE_CALENDAR_ID']
 
-EVERYONE_ROLE = int(env['EVERYONE_ROLE'])
 CLIENT_ROLE = int(env['CLIENT_ROLE'])
 MODERATION_ROLE = int(env['MODERATION_ROLE'])
 
-FREE_RDV_CHANNEL_ID = int(env['FREE_RDV_CHANNEL_ID'])
-PREMIUM_RDV_CHANNEL_ID = int(env['PREMIUM_RDV_CHANNEL_ID'])
-RDV_LOGS_CHANNEL_ID = int(env['RDV_LOGS_CHANNEL_ID'])
+MEETINGS_CHANNEL_ID = int(env['MEETINGS_CHANNEL_ID'])
+MEETINGS_LOGS_CHANNEL_ID = int(env['MEETINGS_LOGS_CHANNEL_ID'])
 OPEN_RDV_CATEGORY_ID = int(env['OPEN_RDV_CATEGORY_ID'])
-CLOSED_RDV_CATEGORY_ID = int(env['CLOSED_RDV_CATEGORY_ID'])
+ARCHIVED_RDV_CATEGORY_ID = int(env['ARCHIVED_RDV_CATEGORY_ID'])
 
 def get_weekday(number: int) -> str:
     weekdays = {
@@ -145,7 +143,7 @@ class CalendarEvent():
 def check_event(event: CalendarEvent, arg: str = "Créneau libre") -> Union[bool, None]:
     now = datetime.utcnow()  # 'Z' indicates UTC time
     events_result = service.events().list(
-        calendarId=CALENDAR_ID,
+        calendarId=GOOGLE_CALENDAR_ID,
         timeMin=now.isoformat() + 'Z',
         timeMax=(now + timedelta(days=7)).isoformat() + 'Z',
         singleEvents=True,
@@ -179,9 +177,9 @@ def split_dispo(event: CalendarEvent) -> None:
             }
         }
         start += timedelta(minutes=40)
-        service.events().insert(calendarId=CALENDAR_ID, body=slot).execute()
+        service.events().insert(calendarId=GOOGLE_CALENDAR_ID, body=slot).execute()
 
-    service.events().delete(calendarId=CALENDAR_ID, eventId=event.id).execute() 
+    service.events().delete(calendarId=GOOGLE_CALENDAR_ID, eventId=event.id).execute() 
             
 async def get_thread_author(channel: TextChannel) -> Union[Member, User]:
     history = channel.history(oldest_first=True, limit=1)
@@ -223,7 +221,7 @@ async def cancel_rdv(interaction: Union[Interaction, None], event: Union[Calenda
         event.location = ""
         event.reminders = {}
         
-        service.events().update(calendarId=CALENDAR_ID, eventId=event.id, body=event.build()).execute()  
+        service.events().update(calendarId=GOOGLE_CALENDAR_ID, eventId=event.id, body=event.build()).execute()  
 
     if isinstance(interaction, Interaction):
         embed = Embed(
@@ -254,7 +252,7 @@ class MeetingView(ui.View):
 
         now = datetime.utcnow()  # 'Z' indicates UTC time
         events_result = service.events().list(
-            calendarId=CALENDAR_ID,
+            calendarId=GOOGLE_CALENDAR_ID,
             timeMin=now.isoformat() + 'Z',
             timeMax=(now + timedelta(days=7)).isoformat() + 'Z',
             singleEvents=True,
@@ -267,7 +265,7 @@ class MeetingView(ui.View):
                 split_dispo(event)
 
         events_result = service.events().list(
-            calendarId=CALENDAR_ID,
+            calendarId=GOOGLE_CALENDAR_ID,
             timeMin=now.isoformat() + 'Z',
             timeMax=(now + timedelta(days=7)).isoformat() + 'Z',
             singleEvents=True,
@@ -337,13 +335,13 @@ class TimeSlotsDropdown(ui.Select):
         )
 
     async def callback(self, interaction: Interaction) -> None:
-        event = service.events().get(calendarId=CALENDAR_ID, eventId=self.values[0]).execute()
+        event = service.events().get(calendarId=GOOGLE_CALENDAR_ID, eventId=self.values[0]).execute()
         event = CalendarEvent(event)
         if check_event(event):
             event.summary = "En cours de résérvation..." 
             event.colorId = "5"
 
-            event = service.events().update(calendarId=CALENDAR_ID, eventId=event.id, body=event.build()).execute()
+            event = service.events().update(calendarId=GOOGLE_CALENDAR_ID, eventId=event.id, body=event.build()).execute()
             event = CalendarEvent(event)
 
             form = Form(event)
@@ -467,7 +465,7 @@ class Confirm(ui.View):
         if interaction.guild:
             channel = await interaction.guild.create_text_channel(name=self.event.summary, category=interaction.channel.category, overwrites=overwrites) #type: ignore
             self.event.location = channel.id
-            service.events().update(calendarId=CALENDAR_ID, eventId=self.event.id, body=self.event.build()).execute()
+            service.events().update(calendarId=GOOGLE_CALENDAR_ID, eventId=self.event.id, body=self.event.build()).execute()
 
             embed = Embed(
                     title=f"Rendez-vous de {user}",
@@ -627,10 +625,9 @@ class Meetings(commands.Cog):
                              description="Pour prendre un rendez-vous",
                              color=Colour.blue())
 
-        channel = self.client.get_channel(FREE_RDV_CHANNEL_ID)
-        if isinstance(channel, TextChannel):
-            await channel.purge()
-            await channel.send(embed=meetingEmbed, view=MeetingView())
+        await interaction.channel.purge() #type: ignore
+        # type: ignore
+        await interaction.channel.send(embed=meetingEmbed, view=MeetingView())
 
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
@@ -657,7 +654,7 @@ class Meetings(commands.Cog):
     async def clear_events(self, interaction: Interaction) -> None:
         
         events_result = service.events().list(
-                                            calendarId=CALENDAR_ID, 
+                                            calendarId=GOOGLE_CALENDAR_ID, 
                                             singleEvents=True, 
                                             orderBy='startTime'
                                             ).execute()
@@ -665,7 +662,7 @@ class Meetings(commands.Cog):
         deleted = []
         for event in events:
             deleted.append(event.get("summary"))
-            service.events().delete(calendarId=CALENDAR_ID, eventId=event.get("id")).execute()
+            service.events().delete(calendarId=GOOGLE_CALENDAR_ID, eventId=event.get("id")).execute()
             
         embed = Embed(
             title="Les events suivant ont été purgés:",
