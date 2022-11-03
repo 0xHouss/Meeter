@@ -26,33 +26,15 @@ GOOGLE_CALENDAR_ID = env['GOOGLE_CALENDAR_ID']
 CLIENT_ROLE = int(env['CLIENT_ROLE'])
 MODERATION_ROLE = int(env['MODERATION_ROLE'])
 
-MEETINGS_CHANNEL_ID = int(env['MEETINGS_CHANNEL_ID'])
-MEETINGS_LOGS_CHANNEL_ID = int(env['MEETINGS_LOGS_CHANNEL_ID'])
-OPEN_RDV_CATEGORY_ID = int(env['OPEN_RDV_CATEGORY_ID'])
-ARCHIVED_RDV_CATEGORY_ID = int(env['ARCHIVED_RDV_CATEGORY_ID'])
-
 class Calendar():
     def __init__(self) -> None:
         self.creds = self.get_creds()
         self.service = build('calendar', 'v3', credentials=self.creds)
 
-    def get_creds(self) -> Union[Credentials, None]:
-        creds = None
-
-        if GOOGLE_TOKEN:
-            creds = Credentials.from_authorized_user_info(GOOGLE_TOKEN, SCOPES)
-
-        # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_config(
-                    GOOGLE_CREDITENTIALS, SCOPES)
-                creds = flow.run_local_server(port=0)
-
-        if isinstance(creds, Credentials):
-            return creds
+    def get_creds(self) -> Credentials:
+        creds = Credentials.from_authorized_user_info(GOOGLE_TOKEN, SCOPES)
+        
+        return creds
     
     def get(self, eventId):
         return self.service.events().get(calendarId=GOOGLE_CALENDAR_ID, eventId=eventId).execute()
