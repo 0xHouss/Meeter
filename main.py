@@ -49,7 +49,7 @@ class Bot(commands.Bot):
 			return
 		else:
 			await interaction.send(
-				f"This command raised an exception: `{type(error)}:{str(error)}`",
+				f"La commande a rencontré une erreur: `{type(error)}:{str(error)}`",
 				ephemeral=True,
 			)
 
