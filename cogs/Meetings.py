@@ -253,10 +253,10 @@ class TakeMeetingView(ui.View):
 
     @ui.button(label="Prendre un RDV", style=ButtonStyle.primary, custom_id="meeting_view:primary")
     async def callback(self, button: Union[ui.Button, None], interaction: Interaction) -> None:
-        for channel in interaction.channel.category.channels:  # type: ignore
+        for channel in interaction.channel.category.channels:  
             if str(channel.name)[:3] == "rdv":
-                author = await MeetingView().get_thread_author(channel)  # type: ignore
-                if author == interaction.user and interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles: # type: ignore
+                author = await MeetingView().get_thread_author(channel)  
+                if author == interaction.user and interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles: 
                     embed = Embed(
                         title="Vous avez déja pris un rendez-vous",
                         color=Colour.red()
@@ -264,7 +264,7 @@ class TakeMeetingView(ui.View):
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                     return
 
-        if interaction.guild.get_role(CLIENT_ROLE) in interaction.user.roles: # type: ignore
+        if interaction.guild.get_role(CLIENT_ROLE) in interaction.user.roles: 
             embed = Embed(
                 title="Engagement", description="En cliquant sur accepter vous vous engager a payer apres le rendez-vous", colour=Colour.blue())
             await interaction.response.send_message(embed=embed, view=AcceptConditionsView(), ephemeral=True)
@@ -302,7 +302,7 @@ class TimeSlotsDropdown(ui.Select):
             event = calendar.update(event.id, event.build())
             event = CalendarEvent(event)
             
-            if interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles:  #type: ignore
+            if interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles:  
                 form = Form(event)
                 await interaction.response.send_modal(form)
             else:
@@ -415,10 +415,10 @@ class ConfirmMeetingView(ui.View):
 
         user = interaction.user
         """overwrites: dict[Role | Member, PermissionOverwrite] = {
-            interaction.guild.default_role: PermissionOverwrite(view_channel=False),#type: ignore
+            interaction.guild.default_role: PermissionOverwrite(view_channel=False),
             user: PermissionOverwrite(view_channel=True), 
-            interaction.guild.get_role(MODERATION_ROLE): PermissionOverwrite(view_channel=True)#type: ignore
-        } #type: ignore"""
+            interaction.guild.get_role(MODERATION_ROLE): PermissionOverwrite(view_channel=True)
+        } """
 
         self.event.summary = f"Rendez-vous ({user})"
         self.event.description = description
@@ -430,38 +430,39 @@ class ConfirmMeetingView(ui.View):
                             }
 
         channel = None
-        content = user.mention  # type: ignore
+        content = user.mention  
         meetView = MeetingView()
         message = None
-        for rdv_channel in interaction.channel.category.channels:  # type: ignore
+        for rdv_channel in interaction.channel.category.channels:  
             if str(rdv_channel.name)[:3] == "rdv":
-                author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
+                author = await MeetingView().get_thread_author(rdv_channel)  
                 if author == interaction.user:
                     channel = rdv_channel
                     content = None
                     meetView = None
-                    history = channel.history(oldest_first=True, limit=1)  # type: ignore
+                    history = channel.history(oldest_first=True, limit=1)  
                     history_flat = await history.flatten()
-                    message = history_flat[0]  # type: ignore
+                    message = history_flat[0]  
                     await message.edit(view=MeetingView()) 
 
-        for rdv_channel in utils.get(interaction.guild.categories, name="Archives").channels: # type: ignore
+        for rdv_channel in utils.get(interaction.guild.categories, name="Archives").channels: 
             if str(rdv_channel.name)[:3] == "rdv":
-                author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
+                author = await MeetingView().get_thread_author(rdv_channel)  
                 if author == interaction.user:
                     channel = rdv_channel
                     content = None
                     meetView = None
-                    await channel.edit(category=interaction.channel.category, overwrites=overwrites) # type: ignore
-                    await channel.purge(limit=1) # type: ignore
-                    history = channel.history(oldest_first=True, limit=1)  # type: ignore
+                    await channel.edit(category=interaction.channel.category, sync_permissions=True)
+                    await channel.set_permissions(author, view_channel=True)
+                    await channel.purge(limit=1) 
+                    history = channel.history(oldest_first=True, limit=1)  
                     history_flat = await history.flatten()
-                    message = history_flat[0]  # type: ignore
+                    message = history_flat[0]  
                     await message.edit(view=MeetingView()) 
 
         if not channel:
-            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category) #type: ignore
-            await channel.set_permissions(user, view_channel=True) #type: ignore
+            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category) 
+            await channel.set_permissions(user, view_channel=True) 
             
 
         self.event.location = channel.id
@@ -476,7 +477,7 @@ class ConfirmMeetingView(ui.View):
 
         
         
-        msg = await channel.send(content, view=meetView, embed=embed) #type: ignore
+        msg = await channel.send(content, view=meetView, embed=embed) 
         await msg.pin()
         embed = Embed(
                 title="Rendez-vous pris!",
@@ -491,7 +492,7 @@ class ConfirmMeetingView(ui.View):
         if not message:
             message = msg
 
-        await MeetingView().schedule_alert(interaction, self.event, message) #type: ignore
+        await MeetingView().schedule_alert(interaction, self.event, message) 
             
 
     # This one is similar to the confirmation button except sets the inner value to `False`
@@ -519,7 +520,7 @@ class MeetingView(ui.View):
         if interaction.guild:
             await sleep(wait)
             rdv_channel = interaction.guild.get_channel(int(event.location))
-            if str(rdv_channel.category) == "Rendez-vous":  # type: ignore
+            if str(rdv_channel.category) == "Rendez-vous":  
                 if event.check_event():
                     now = datetime.now()
                     wait = int((event.start-now).total_seconds())
@@ -529,17 +530,17 @@ class MeetingView(ui.View):
                             color=Colour.blue()
                         )
 
-                        await rdv_channel.send("@here", embed=embed) #type: ignore
+                        await rdv_channel.send("@here", embed=embed) 
                         await sleep(wait)
                 else:   
                     embed = Embed(
                         title="Le rendez-vous a été annulé",
                         color=Colour.red()
                     )
-                    await rdv_channel.send("@here", embed=embed)  # type: ignore
+                    await rdv_channel.send("@here", embed=embed)  
 
             rdv_channel = interaction.guild.get_channel(int(event.location))
-            if str(rdv_channel.category) == "Rendez-vous":  # type: ignore
+            if str(rdv_channel.category) == "Rendez-vous":  
                 if event.check_event():
                         
                         embed = Embed(
@@ -547,8 +548,8 @@ class MeetingView(ui.View):
                             color=Colour.green()
                         )
 
-                        await rdv_channel.send("@here", embed=embed) # type: ignore
-                        await interaction.user.add_roles(interaction.guild.get_role(CLIENT_ROLE))  # type: ignore
+                        await rdv_channel.send("@here", embed=embed) 
+                        await interaction.user.add_roles(interaction.guild.get_role(CLIENT_ROLE))  
                         now = datetime.now()
                         then = event.end
                         wait = int((then-now).total_seconds())
@@ -559,17 +560,17 @@ class MeetingView(ui.View):
                             color=Colour.red()
                         )
 
-                        await rdv_channel.send("@here", embed=embed) # type: ignore
+                        await rdv_channel.send("@here", embed=embed) 
                         for button in self.children:
-                            button.disabled = False  # type: ignore
-                        await message.edit(view=self)  # type: ignore
+                            button.disabled = False  
+                        await message.edit(view=self)  
                 else:
                     embed = Embed(
                         title="Le rendez-vous a été annulé",
                         color=Colour.red()
                     )
 
-                    await rdv_channel.send("@here", embed=embed) #type: ignore 
+                    await rdv_channel.send("@here", embed=embed)  
 
     async def get_thread_author(self, channel: TextChannel) -> Union[Member, User]:
         history = channel.history(oldest_first=True, limit=1)
@@ -583,26 +584,26 @@ class MeetingView(ui.View):
             colour=Colour.dark_theme(),
         )
         channel = interaction.channel
-        channel_author = await self.get_thread_author(channel) #type: ignore
+        channel_author = await self.get_thread_author(channel) 
         closed_by = interaction.user
 
         # Send the closing message to the help thread
-        await channel.send(embed=embed_reply) #type: ignore
-        await channel.set_permissions(channel_author, read_messages=False) #type: ignore
+        await channel.send(embed=embed_reply) 
+        await channel.set_permissions(channel_author, read_messages=False) 
 
         # Send log
         embed_log = Embed(
             title=":x: Rendez-vous férmé",
             description=(
-                f"{channel.mention}\n\nRendez vous crée par {channel_author.mention} a été férmé par {closed_by.mention}.\n\n" # type: ignore
+                f"{channel.mention}\n\nRendez vous crée par {channel_author.mention} a été férmé par {closed_by.mention}.\n\n" 
                 f"Createur: `{channel_author} ({channel_author.id})`\n"
-                f"Férmé par: `{closed_by} ({closed_by.id})`" # type: ignore
+                f"Férmé par: `{closed_by} ({closed_by.id})`" 
             ),
             colour=0xDD2E44,  # Red
         )
 
-        await channel.edit(category=utils.get(channel.guild.categories, name="Archives"), sync_permissions=True) # type: ignore
-        await utils.get(interaction.guild.channels, name="logs").send(embed=embed_log) # type: ignore
+        await channel.edit(category=utils.get(channel.guild.categories, name="Archives"), sync_permissions=True) 
+        await utils.get(interaction.guild.channels, name="logs").send(embed=embed_log) 
 
 
     @ui.button(label="Reprendre un RDV", style=ButtonStyle.primary, custom_id=f"take_other_meet", disabled=True)
@@ -613,7 +614,7 @@ class MeetingView(ui.View):
     @ui.button(label="Fermer", style=ButtonStyle.red, custom_id=f"meet_close_button")
     async def meet_close_button(self, button: Button, interaction: Interaction) -> None:
         for children in self.children:
-            children.disabled = True  # type: ignore
+            children.disabled = True  
         await interaction.response.edit_message(view=self)
         await self.close_help_thread(interaction)
 
@@ -668,7 +669,7 @@ class Meetings(commands.Cog):
         self.client.loop.create_task(self.create_views())
 
     async def create_views(self):
-        self.client.rdv_view_set = True #type: ignore
+        self.client.rdv_view_set = True 
         self.client.add_view(TakeMeetingView())
         self.client.add_view(MeetingView())
     
@@ -678,8 +679,8 @@ class Meetings(commands.Cog):
                              description="Pour prendre un rendez-vous",
                              color=Colour.blue())
 
-        await interaction.channel.purge() #type: ignore
-        await interaction.channel.send(embed=meetingEmbed, view=TakeMeetingView()) #type: ignore
+        await interaction.channel.purge() 
+        await interaction.channel.send(embed=meetingEmbed, view=TakeMeetingView()) 
 
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
