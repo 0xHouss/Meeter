@@ -50,9 +50,6 @@ class Calendar():
                 flow = InstalledAppFlow.from_client_config(
                     GOOGLE_CREDITENTIALS, SCOPES)
                 creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
-            with open('auth/token.json', 'w') as token:
-                token.write(creds.to_json())
 
         if isinstance(creds, Credentials):
             return creds
