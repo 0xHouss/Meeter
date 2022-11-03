@@ -272,7 +272,7 @@ class TakeMeetingView(ui.View):
     @ui.button(label="Prendre un RDV", style=ButtonStyle.primary, custom_id="meeting_view:primary")
     async def callback(self, button: Union[ui.Button, None], interaction: Interaction) -> None:
         for channel in interaction.channel.category.channels:  # type: ignore
-            if channel.name.startswith("rendez-vous"):
+            if channel.name.startswith("rdv"):
                 author = await MeetingView().get_thread_author(channel)  # type: ignore
                 if author == interaction.user and interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles: # type: ignore
                     embed = Embed(
@@ -452,7 +452,7 @@ class ConfirmMeetingView(ui.View):
         meetView = MeetingView()
         message = None
         for rdv_channel in interaction.channel.category.channels:  # type: ignore
-            if rdv_channel.name.startswith("rendez-vous"):
+            if rdv_channel.name.startswith("rdv"):
                 author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
                 if author == interaction.user:
                     channel = rdv_channel
@@ -464,7 +464,7 @@ class ConfirmMeetingView(ui.View):
                     await message.edit(view=MeetingView()) 
 
         for rdv_channel in utils.get(interaction.guild.categories, name="Archives").channels: # type: ignore
-            if rdv_channel.name.startswith("rendez-vous"):
+            if rdv_channel.name.startswith("rdv"):
                 author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
                 if author == interaction.user:
                     channel = rdv_channel
@@ -478,7 +478,7 @@ class ConfirmMeetingView(ui.View):
                     await message.edit(view=MeetingView()) 
 
         if not channel:
-            channel = await interaction.guild.create_text_channel(name=self.event.summary, category=interaction.channel.category, overwrites=overwrites) #type: ignore
+            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category, overwrites=overwrites) #type: ignore
             
 
         self.event.location = channel.id
