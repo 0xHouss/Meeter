@@ -2,17 +2,14 @@ from asyncio import sleep
 from datetime import datetime, timedelta
 import math
 from os import environ as env
-from os import path
 from typing import Union
 
 import nextcord
-from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-from nextcord import (Button, ButtonStyle, ClientUser, Colour,
-                      Embed, Interaction, Member, PermissionOverwrite, Role,
+from nextcord import (Button, ButtonStyle, Colour,
+                      Embed, Interaction, Member,
                       SelectOption, SlashOption, TextChannel, TextInputStyle,
                       User, slash_command, ui, utils, PartialInteractionMessage)
 
@@ -220,7 +217,7 @@ class TakeMeetingView(ui.View):
 
         for event in events:
             event = CalendarEvent(event)
-            if event.summary == "Créneau libre":
+            if event.summary == "Créneau libre" and event.start > datetime.now():
                 if event.day not in slots:
                     slots[event.day] = []
                 slots[event.day].append(event)
@@ -409,34 +406,31 @@ class ConfirmMeetingView(ui.View):
     # We also send the user an ephemeral message that we're confirming their choice.
     @ui.button(label="Confirmer", style=ButtonStyle.green)
     async def confirm(self, button: ui.Button, interaction: Interaction) -> None:  
+        await interaction.response.defer(ephemeral=True)
         description = ""
         for info in self.infos:
             description += f"{info}: {self.infos[info]}\n\n"
 
         user = interaction.user
-        """overwrites: dict[Role | Member, PermissionOverwrite] = {
-            interaction.guild.default_role: PermissionOverwrite(view_channel=False),
-            user: PermissionOverwrite(view_channel=True), 
-            interaction.guild.get_role(MODERATION_ROLE): PermissionOverwrite(view_channel=True)
-        } """
+        interaction_channel = interaction.channel
 
         self.event.summary = f"Rendez-vous ({user})"
         self.event.description = description
         self.event.reminders = {
-                            'useDefault': False,
-                            'overrides': [
-                                {'method': 'popup', 'minutes': 10},
-                            ], 
-                            }
+            'useDefault': False,
+            'overrides': [
+            {'method': 'popup', 'minutes': 10},
+        ], 
+        }
 
         channel = None
         content = user.mention  
         meetView = MeetingView()
         message = None
-        for rdv_channel in interaction.channel.category.channels:  
+        for rdv_channel in interaction_channel.category.channels:  
             if str(rdv_channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(rdv_channel)  
-                if author == interaction.user:
+                if author == user:
                     channel = rdv_channel
                     content = None
                     meetView = None
@@ -445,14 +439,14 @@ class ConfirmMeetingView(ui.View):
                     message = history_flat[0]  
                     await message.edit(view=MeetingView()) 
 
-        for rdv_channel in utils.get(interaction.guild.categories, name="Archives").channels: 
+        for rdv_channel in utils.get(interaction_channel.guild.categories, name="Archives").channels: 
             if str(rdv_channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(rdv_channel)  
-                if author == interaction.user:
+                if author == user:
                     channel = rdv_channel
                     content = None
                     meetView = None
-                    await channel.edit(category=interaction.channel.category, sync_permissions=True)
+                    await channel.edit(category=interaction_channel.category, sync_permissions=True)
                     await channel.set_permissions(author, view_channel=True)
                     await channel.purge(limit=1) 
                     history = channel.history(oldest_first=True, limit=1)  
@@ -461,7 +455,7 @@ class ConfirmMeetingView(ui.View):
                     await message.edit(view=MeetingView()) 
 
         if not channel:
-            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category) 
+            channel = await interaction_channel.guild.create_text_channel(name=f"rdv-{str(user).replace(' ', '')}", category=interaction_channel.category) 
             await channel.set_permissions(user, view_channel=True) 
             
 
@@ -485,14 +479,14 @@ class ConfirmMeetingView(ui.View):
                 color=Colour.green()
             )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
         self.value = True
         self.stop()
 
         if not message:
             message = msg
 
-        await MeetingView().schedule_alert(interaction, self.event, message) 
+        await MeetingView().schedule_alert(interaction_channel.guild, user, self.event, message) 
             
 
     # This one is similar to the confirmation button except sets the inner value to `False`
@@ -512,65 +506,58 @@ class MeetingView(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def schedule_alert(self, interaction: Interaction, event: CalendarEvent, message: PartialInteractionMessage) -> None:
-        now = datetime.now()
-        then = event.start - timedelta(minutes=10)
-        wait = int((then-now).total_seconds())
-        wait = 0 if wait < 0 else wait
-        if interaction.guild:
-            await sleep(wait)
-            rdv_channel = interaction.guild.get_channel(int(event.location))
-            if str(rdv_channel.category) == "Rendez-vous":  
-                if event.check_event():
-                    now = datetime.now()
-                    wait = int((event.start-now).total_seconds())
-                    if wait > 0:
-                        embed = Embed(
-                            title=f"Le rendez-vous est dans {int(math.ceil(wait / 60))} minutes",
-                            color=Colour.blue()
-                        )
+    async def schedule_alert(self, guild, user, event: CalendarEvent, message: PartialInteractionMessage) -> None:
+        wait = int((event.start-datetime.now()).total_seconds())
 
-                        await rdv_channel.send("@here", embed=embed) 
-                        await sleep(wait)
-                else:   
-                    embed = Embed(
-                        title="Le rendez-vous a été annulé",
-                        color=Colour.red()
-                    )
-                    await rdv_channel.send("@here", embed=embed)  
+        if wait > 600:
+            await sleep(wait - 600)
 
-            rdv_channel = interaction.guild.get_channel(int(event.location))
-            if str(rdv_channel.category) == "Rendez-vous":  
-                if event.check_event():
-                        
-                        embed = Embed(
-                            title="Le rendez-vous a commencé",
-                            color=Colour.green()
-                        )
-
-                        await rdv_channel.send("@here", embed=embed) 
-                        await interaction.user.add_roles(interaction.guild.get_role(CLIENT_ROLE))  
-                        now = datetime.now()
-                        then = event.end
-                        wait = int((then-now).total_seconds())
-                        wait = 0 if wait < 0 else wait
-                        await sleep(wait)
-                        embed = Embed(
-                            title="Le rendez-vous est fini",
-                            color=Colour.red()
-                        )
-
-                        await rdv_channel.send("@here", embed=embed) 
-                        for button in self.children:
-                            button.disabled = False  
-                        await message.edit(view=self)  
-                else:
-                    embed = Embed(
-                        title="Le rendez-vous a été annulé",
-                        color=Colour.red()
+        rdv_channel = guild.get_channel(int(event.location))
+        if str(rdv_channel.category) == "Rendez-vous":  
+            if event.check_event():
+                wait = int((event.start-datetime.now()).total_seconds())
+                embed = Embed(
+                        title=f"Le rendez-vous est dans {int(math.ceil(wait / 60))} minutes",
+                        color=Colour.blue()
                     )
 
-                    await rdv_channel.send("@here", embed=embed)  
+                await rdv_channel.send("@here", embed=embed) 
+                await sleep(wait)
+            else:   
+                embed = Embed(
+                    title="Le rendez-vous a été annulé",
+                    color=Colour.red()
+                )
+                await rdv_channel.send("@here", embed=embed)  
+
+        rdv_channel = guild.get_channel(int(event.location))
+        if str(rdv_channel.category) == "Rendez-vous":  
+            if event.check_event(): 
+                embed = Embed(
+                    title="Le rendez-vous a commencé",
+                    color=Colour.green()
+                )
+
+                await rdv_channel.send("@here", embed=embed) 
+                await user.add_roles(guild.get_role(CLIENT_ROLE))  
+                wait = int((event.end-datetime.now()).total_seconds())
+                await sleep(wait)
+                embed = Embed(
+                    title="Le rendez-vous est fini",
+                    color=Colour.red()
+                )
+
+                await rdv_channel.send("@here", embed=embed) 
+                for button in self.children:
+                    button.disabled = False  
+                await message.edit(view=self)  
+            else:
+                embed = Embed(
+                    title="Le rendez-vous a été annulé",
+                    color=Colour.red()
+                )
+
+                await rdv_channel.send("@here", embed=embed)  
 
     async def get_thread_author(self, channel: TextChannel) -> Union[Member, User]:
         history = channel.history(oldest_first=True, limit=1)
