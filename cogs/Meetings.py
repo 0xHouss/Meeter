@@ -254,7 +254,7 @@ class TakeMeetingView(ui.View):
     @ui.button(label="Prendre un RDV", style=ButtonStyle.primary, custom_id="meeting_view:primary")
     async def callback(self, button: Union[ui.Button, None], interaction: Interaction) -> None:
         for channel in interaction.channel.category.channels:  # type: ignore
-            if channel.name.startswith("rdv"):
+            if str(channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(channel)  # type: ignore
                 if author == interaction.user and interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles: # type: ignore
                     embed = Embed(
@@ -414,11 +414,11 @@ class ConfirmMeetingView(ui.View):
             description += f"{info}: {self.infos[info]}\n\n"
 
         user = interaction.user
-        overwrites: dict[Role | Member, PermissionOverwrite] = {
+        """overwrites: dict[Role | Member, PermissionOverwrite] = {
             interaction.guild.default_role: PermissionOverwrite(view_channel=False),#type: ignore
             user: PermissionOverwrite(view_channel=True), 
             interaction.guild.get_role(MODERATION_ROLE): PermissionOverwrite(view_channel=True)#type: ignore
-        } #type: ignore
+        } #type: ignore"""
 
         self.event.summary = f"Rendez-vous ({user})"
         self.event.description = description
@@ -434,7 +434,7 @@ class ConfirmMeetingView(ui.View):
         meetView = MeetingView()
         message = None
         for rdv_channel in interaction.channel.category.channels:  # type: ignore
-            if rdv_channel.name.startswith("rdv"):
+            if str(rdv_channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
                 if author == interaction.user:
                     channel = rdv_channel
@@ -446,7 +446,7 @@ class ConfirmMeetingView(ui.View):
                     await message.edit(view=MeetingView()) 
 
         for rdv_channel in utils.get(interaction.guild.categories, name="Archives").channels: # type: ignore
-            if rdv_channel.name.startswith("rdv"):
+            if str(rdv_channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(rdv_channel)  # type: ignore
                 if author == interaction.user:
                     channel = rdv_channel
@@ -460,7 +460,8 @@ class ConfirmMeetingView(ui.View):
                     await message.edit(view=MeetingView()) 
 
         if not channel:
-            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category, overwrites=overwrites) #type: ignore
+            channel = await interaction.guild.create_text_channel(name=f"rdv-{str(interaction.user).replace(' ', '')}", category=interaction.channel.category) #type: ignore
+            await channel.set_permissions(user, view_channel=True) #type: ignore
             
 
         self.event.location = channel.id
