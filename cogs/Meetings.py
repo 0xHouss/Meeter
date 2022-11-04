@@ -215,11 +215,9 @@ class TakeMeetingView(ui.View):
 
         slots: dict[str, list[CalendarEvent]] = {}
 
-        print(event.start.time(), datetime.utcnow().time() + timedelta(hours=1))
-        print(event.start > datetime.utcnow() + timedelta(hours=1))
-
         for event in events:
             event = CalendarEvent(event)
+
             if event.summary == "Créneau libre" and event.start > datetime.utcnow() + timedelta(hours=1):
                 if event.day not in slots:
                     slots[event.day] = []
