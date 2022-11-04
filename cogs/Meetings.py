@@ -118,7 +118,7 @@ class CalendarEvent():
         return event
 
     def check_event(self) -> bool:
-        now = datetime.utcnow()  # 'Z' indicates UTC time
+        now = datetime.utcnow() + timedelta(hours=1)  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
 
@@ -204,7 +204,7 @@ class TakeMeetingView(ui.View):
         self.message = None
 
     async def take_meeting(self, interaction: Interaction):
-        now = datetime.utcnow()  # 'Z' indicates UTC time
+        now = datetime.utcnow() + timedelta(hours=1)  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
         for event in events:
@@ -215,12 +215,12 @@ class TakeMeetingView(ui.View):
 
         slots: dict[str, list[CalendarEvent]] = {}
 
-        print(event.start.time(), datetime.now().time())
-        print(event.start > datetime.now())
+        print(event.start.time(), datetime.utcnow().time() + timedelta(hours=1))
+        print(event.start > datetime.utcnow() + timedelta(hours=1))
 
         for event in events:
             event = CalendarEvent(event)
-            if event.summary == "Créneau libre" and event.start > datetime.utcnow():
+            if event.summary == "Créneau libre" and event.start > datetime.utcnow() + timedelta(hours=1):
                 if event.day not in slots:
                     slots[event.day] = []
                 slots[event.day].append(event)
@@ -512,7 +512,7 @@ class MeetingView(ui.View):
         super().__init__(timeout=None)
 
     async def schedule_alert(self, guild, user, event: CalendarEvent, message: PartialInteractionMessage) -> None:
-        wait = int((event.start-datetime.now()).total_seconds())
+        wait = int((event.start-datetime.utcnow() + timedelta(hours=1)).total_seconds())
 
         if wait > 600:
             await sleep(wait - 600)
@@ -520,7 +520,7 @@ class MeetingView(ui.View):
         rdv_channel = guild.get_channel(int(event.location))
         if str(rdv_channel.category) == "Rendez-vous":  
             if event.check_event():
-                wait = int((event.start-datetime.now()).total_seconds())
+                wait = int((event.start-datetime.utcnow() + timedelta(hours=1)).total_seconds())
                 embed = Embed(
                         title=f"Le rendez-vous est dans {int(math.ceil(wait / 60))} minutes",
                         color=Colour.blue()
@@ -545,7 +545,7 @@ class MeetingView(ui.View):
 
                 await rdv_channel.send("@here", embed=embed) 
                 await user.add_roles(guild.get_role(CLIENT_ROLE))  
-                wait = int((event.end-datetime.now()).total_seconds())
+                wait = int((event.end-datetime.utcnow() + timedelta(hours=1)).total_seconds())
                 await sleep(wait)
                 embed = Embed(
                     title="Le rendez-vous est fini",
