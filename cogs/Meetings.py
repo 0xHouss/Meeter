@@ -215,6 +215,9 @@ class TakeMeetingView(ui.View):
 
         slots: dict[str, list[CalendarEvent]] = {}
 
+        print(event.start.time(), datetime.now().time())
+        print(event.start > datetime.now())
+
         for event in events:
             event = CalendarEvent(event)
             if event.summary == "Créneau libre" and event.start > datetime.now():
