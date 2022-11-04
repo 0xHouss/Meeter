@@ -13,7 +13,7 @@ from nextcord import (Button, ButtonStyle, Colour,
                       SelectOption, SlashOption, TextChannel, TextInputStyle,
                       User, slash_command, ui, utils, PartialInteractionMessage)
 
-from nextcord.ext import commands
+from nextcord.ext import commands, application_checks
 
 GOOGLE_CREDITENTIALS = eval(env['GOOGLE_CREDITENTIALS'])
 GOOGLE_TOKEN = eval(env['GOOGLE_TOKEN'])
@@ -664,7 +664,7 @@ class Meetings(commands.Cog):
         self.client.add_view(TakeMeetingView())
         self.client.add_view(MeetingView())
 
-    @commands.has_permissions(manage_messages=True)
+    @application_checks.has_permissions(manage_messages=True)
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
             self,
