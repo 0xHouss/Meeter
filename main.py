@@ -48,7 +48,7 @@ class Bot(commands.Bot):
 			await interaction.send(f"Le role {role.mention} est requis pour uitliser cette commmande.", ephemeral=True)  # type: ignore
 			return
 		elif isinstance(error, application_errors.ApplicationMissingPermissions):
-			await interaction.send(f"Le role {error.missing_permissions} est requis pour uitliser cette commmande.", ephemeral=True)
+			await interaction.send(f"La/les permission(s) {', '.join(error.missing_permissions)} est/sont requise(s) pour uitliser cette commmande.", ephemeral=True)
 			return
 		else:
 			await interaction.send(
