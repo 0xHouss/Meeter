@@ -220,7 +220,7 @@ class TakeMeetingView(ui.View):
 
         for event in events:
             event = CalendarEvent(event)
-            if event.summary == "Créneau libre" and event.start > datetime.now():
+            if event.summary == "Créneau libre" and event.start > datetime.utcnow():
                 if event.day not in slots:
                     slots[event.day] = []
                 slots[event.day].append(event)
