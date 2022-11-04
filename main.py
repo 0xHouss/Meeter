@@ -49,7 +49,10 @@ class Bot(commands.Bot):
 			return
 		elif isinstance(error, application_errors.ApplicationMissingPermissions):
 			permissions = error.missing_permissions
-			la, perm, est, requise = "Les", "permissions", "sont", "requises" if len(permissions) > 1 else "La", "permission", "est", "requise"
+			if len(permissions) > 1:
+				la, perm, est, requise = "Les", "permissions", "sont", "requises"  
+			else:
+				la, perm, est, requise = "La", "permission", "est", "requise"
 			await interaction.send(f"{la} {perm} **{', '.join(permissions)}** {est} {requise} pour uitliser cette commmande.", ephemeral=True)
 			return
 		else:
