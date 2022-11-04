@@ -45,7 +45,7 @@ class Bot(commands.Bot):
 	async def on_application_command_error(self, interaction: Interaction, error: Exception) -> None:
 		if isinstance(error, application_errors.ApplicationMissingRole):
 			role = interaction.guild.get_role(int(error.missing_role))  # type: ignore
-			await interaction.send(f"Le role {role.mention} est requis pour uitliser cette commmande.", ephemeral=True)  # type: ignore
+			await interaction.send(f"Le role {role.mention} est requis pour utiliser cette commmande.", ephemeral=True)  # type: ignore
 			return
 		elif isinstance(error, application_errors.ApplicationMissingPermissions):
 			permissions = error.missing_permissions
@@ -53,7 +53,7 @@ class Bot(commands.Bot):
 				la, perm, est, requise = "Les", "permissions", "sont", "requises"  
 			else:
 				la, perm, est, requise = "La", "permission", "est", "requise"
-			await interaction.send(f"{la} {perm}: **{', '.join(permissions)}** {est} {requise} pour uitliser cette commmande.", ephemeral=True)
+			await interaction.send(f"{la} {perm}: **{', '.join(permissions)}** {est} {requise} pour utiliser cette commmande.", ephemeral=True)
 			return
 		else:
 			await interaction.send(
