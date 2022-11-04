@@ -238,6 +238,8 @@ class TakeMeetingView(ui.View):
                     id += 1
                 embed.add_field(name=day, value='\n'.join(crens), inline=True)
 
+            embed.set_footer(text="Zone horaire: UTC+1")
+
             timeSlotsView = TimeSlotsView(options)
 
             self.message = await interaction.response.send_message(embed=embed, view=timeSlotsView, ephemeral=True)
@@ -335,9 +337,9 @@ class Form(ui.Modal):
         self.add_item(self.summary)
 
         self.name = ui.TextInput(
-            label="Chaine",
-            placeholder="Nom de la chaine, et lien vers la chaine entre parentheses",
-            min_length=15,
+            label="Lien vers la chaine",
+            placeholder="Donnez le lien de votre chaine",
+            min_length=23,
             max_length=100,
         )
         self.add_item(self.name)
@@ -659,16 +661,8 @@ class Meetings(commands.Cog):
         self.client.rdv_view_set = True 
         self.client.add_view(TakeMeetingView())
         self.client.add_view(MeetingView())
-    
-    @slash_command(name="prepare")
-    async def prepare(self, interaction: Interaction):
-        meetingEmbed = Embed(title="Prise de Rendez-Vous",
-                             description="Pour prendre un rendez-vous",
-                             color=Colour.blue())
 
-        await interaction.channel.purge() 
-        await interaction.channel.send(embed=meetingEmbed, view=TakeMeetingView()) 
-
+    @commands.has_permissions("")
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
             self,
@@ -683,26 +677,6 @@ class Meetings(commands.Cog):
         
         embed = Embed(title="Le salon a été purgé", color=nextcord.Colour.green()
                             )
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-    @slash_command(name="clear_events", description="Pour purger le salon")
-    async def clear_events(self, interaction: Interaction) -> None:
-        
-        events_result = calendar.list()
-        events = events_result.get('items', [])
-        deleted = []
-        for event in events:
-            event = CalendarEvent(event)
-            deleted.append(event.summary)
-            calendar.delete(event.id)
-            
-        embed = Embed(
-            title="Les events suivant ont été purgés:",
-            description='\n'.join(deleted),
-            color=Colour.green()
-        )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
