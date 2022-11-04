@@ -324,7 +324,7 @@ class TimeSlotsDropdown(ui.Select):
 
 class Form(ui.Modal):
     def __init__(self, event: CalendarEvent):
-        super().__init__("Formulaire", timeout=15)
+        super().__init__("Formulaire", timeout=60*5)
 
         self.summary = ui.TextInput(
             label="Sujet du rendez-vous",
@@ -432,7 +432,7 @@ class ConfirmMeetingView(ui.View):
                 author = await MeetingView().get_thread_author(rdv_channel)  
                 if author == user:
                     channel = rdv_channel
-                    content = None
+                    content = "@here"
                     meetView = None
                     history = channel.history(oldest_first=True, limit=1)  
                     history_flat = await history.flatten()
@@ -444,7 +444,7 @@ class ConfirmMeetingView(ui.View):
                 author = await MeetingView().get_thread_author(rdv_channel)  
                 if author == user:
                     channel = rdv_channel
-                    content = None
+                    content = "@here"
                     meetView = None
                     await channel.edit(category=interaction_channel.category, sync_permissions=True)
                     await channel.set_permissions(author, view_channel=True)
