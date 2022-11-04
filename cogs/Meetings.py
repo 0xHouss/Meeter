@@ -662,7 +662,7 @@ class Meetings(commands.Cog):
         self.client.add_view(TakeMeetingView())
         self.client.add_view(MeetingView())
 
-    @commands.has_permissions("")
+    @commands.has_permissions(manage_messages=True)
     @slash_command(name="clear", description="Pour purger le salon")
     async def clear(
             self,
