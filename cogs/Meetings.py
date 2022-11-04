@@ -204,7 +204,7 @@ class TakeMeetingView(ui.View):
         self.message = None
 
     async def take_meeting(self, interaction: Interaction):
-        now = datetime.utcnow() + timedelta(hours=1)  # 'Z' indicates UTC time
+        now = datetime.utcnow()  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
         for event in events:
