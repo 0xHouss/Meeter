@@ -118,7 +118,7 @@ class CalendarEvent():
         return event
 
     def check_event(self) -> bool:
-        now = datetime.utcnow() + timedelta(hours=1)  # 'Z' indicates UTC time
+        now = datetime.utcnow()  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
 
