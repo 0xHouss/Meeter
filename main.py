@@ -53,7 +53,7 @@ class Bot(commands.Bot):
 				la, perm, est, requise = "Les", "permissions", "sont", "requises"  
 			else:
 				la, perm, est, requise = "La", "permission", "est", "requise"
-			await interaction.send(f"{la} {perm} **{', '.join(permissions)}** {est} {requise} pour uitliser cette commmande.", ephemeral=True)
+			await interaction.send(f"{la} {perm}: **{', '.join(permissions)}** {est} {requise} pour uitliser cette commmande.", ephemeral=True)
 			return
 		else:
 			await interaction.send(
