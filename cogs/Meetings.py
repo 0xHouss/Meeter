@@ -204,6 +204,7 @@ class TakeMeetingView(ui.View):
         self.message = None
 
     async def take_meeting(self, interaction: Interaction):
+        await interaction.response.defer(ephemeral=True)
         now = datetime.utcnow()  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
@@ -242,16 +243,17 @@ class TakeMeetingView(ui.View):
 
             timeSlotsView = TimeSlotsView(options)
 
-            self.message = await interaction.response.send_message(embed=embed, view=timeSlotsView, ephemeral=True)
+            self.message = await interaction.followup.send(embed=embed, view=timeSlotsView, ephemeral=True)
         else:
             embed = Embed(
                 title="Aucun créneau disponible pour le moment",
                 color=Colour.red()
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @ui.button(label="Prendre un RDV", style=ButtonStyle.primary, custom_id="meeting_view:primary")
     async def callback(self, button: Union[ui.Button, None], interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
         for channel in interaction.channel.category.channels:  
             if str(channel.name)[:3] == "rdv":
                 author = await MeetingView().get_thread_author(channel)  
@@ -260,23 +262,26 @@ class TakeMeetingView(ui.View):
                         title="Vous avez déja pris un rendez-vous",
                         color=Colour.red()
                     )
-                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                    await interaction.followup.send(embed=embed, ephemeral=True)
                     return
 
         if interaction.guild.get_role(CLIENT_ROLE) in interaction.user.roles: 
             embed = Embed(
                 title="Engagement", description="En cliquant sur accepter vous vous engager a payer apres le rendez-vous", colour=Colour.blue())
-            await interaction.response.send_message(embed=embed, view=AcceptConditionsView(), ephemeral=True)
+            await interaction.followup.send(embed=embed, view=AcceptConditionsView(), ephemeral=True)
         else:    
             await self.take_meeting(interaction)
 
 
 class TimeSlotsView(ui.View):
     def __init__(self, options):
-        super().__init__()
+        super().__init__(timeout=60)
 
         # Adds the dropdown to our view object.
         self.add_item(TimeSlotsDropdown(options))
+
+    async def on_timeout(self) -> None:
+        return await super().on_timeout()
 
 
 class TimeSlotsDropdown(ui.Select):
@@ -292,6 +297,7 @@ class TimeSlotsDropdown(ui.Select):
         )
 
     async def callback(self, interaction: Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
         event = calendar.get(self.values[0])
         event = CalendarEvent(event)
         if event.check_event():
@@ -313,7 +319,7 @@ class TimeSlotsDropdown(ui.Select):
                             color=Colour.blue())
 
                 confirmView = ConfirmMeetingView(event)
-                await interaction.response.send_message(embed=embed, view=confirmView, ephemeral=True)
+                await interaction.followup.send(embed=embed, view=confirmView, ephemeral=True)
         else:
             embed = Embed(
                 title="Le créneau que vous avez choisi n'est plus disponible",
@@ -321,7 +327,7 @@ class TimeSlotsDropdown(ui.Select):
                 color=Colour.red()
             )
             retakeMeetingView = RetakeMeetingView(event)
-            await interaction.response.send_message(embed=embed, view=retakeMeetingView, ephemeral=True)
+            await interaction.followup.send(embed=embed, view=retakeMeetingView, ephemeral=True)
             
 
 class Form(ui.Modal):
@@ -510,7 +516,6 @@ class MeetingView(ui.View):
 
     async def schedule_alert(self, guild, user, event: CalendarEvent, message: PartialInteractionMessage) -> None:
         wait = int((event.start-(datetime.utcnow() + timedelta(hours=1))).total_seconds())
-        print(wait)
         if wait > 600:
             await sleep(wait - 600)
 
@@ -518,7 +523,6 @@ class MeetingView(ui.View):
         if str(rdv_channel.category) == "Rendez-vous":  
             if event.check_event():
                 wait = int((event.start-(datetime.utcnow() + timedelta(hours=1))).total_seconds())
-                print(wait)
                 embed = Embed(
                         title=f"Le rendez-vous est dans {int(math.ceil(wait / 60))} minutes",
                         color=Colour.blue()
@@ -544,7 +548,6 @@ class MeetingView(ui.View):
                 await rdv_channel.send("@here", embed=embed) 
                 await user.add_roles(guild.get_role(CLIENT_ROLE))  
                 wait = int((event.end-(datetime.utcnow() + timedelta(hours=1))).total_seconds())
-                print(wait)
                 await sleep(wait)
                 embed = Embed(
                     title="Le rendez-vous est fini",
