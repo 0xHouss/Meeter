@@ -682,5 +682,12 @@ class Meetings(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    @application_checks.is_owner()
+    @slash_command(name="prepare")
+    async def prepare(self, interaction: Interaction):
+        await interaction.channel.purge()
+        embed = Embed(title="Prise de rendez-vous", description="Pour prendre un rendez-vous", color=nextcord.Colour.blue())
+        await interaction.response.send_message(embed=embed, view=TakeMeetingView())
+
 def setup(client):
     client.add_cog(Meetings(client))
