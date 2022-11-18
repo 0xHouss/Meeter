@@ -694,11 +694,12 @@ class Meetings(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @application_checks.is_owner()
+    @application_checks.has_role("Modo")
     @slash_command(name="prepare")
     async def prepare(self, interaction: Interaction):
         await interaction.channel.purge() #type: ignore
         embed = Embed(title="Prise de rendez-vous", description="Pour prendre un rendez-vous", color=nextcord.Colour.blue())
+        embed.set_footer(text="Vous pouvez enlever les messages en apppuyant sur \"rejeter le message\"")
         await interaction.response.send_message(embed=embed, view=TakeMeetingView())
 
 def setup(client):
