@@ -258,7 +258,7 @@ class TakeMeetingView(ui.View):
     async def callback(self, button: Union[ui.Button, None], interaction: Interaction) -> None:
         for channel in interaction.channel.category.channels: #type: ignore
             if str(channel.name)[:3] == "rdv":
-                author = await MeetingView().get_thread_author(channel) #type: ignore
+                author = await MeetingView(None).get_thread_author(channel) #type: ignore
                 if author == interaction.user and interaction.guild.get_role(CLIENT_ROLE) not in interaction.user.roles: #type: ignore
                     embed = Embed(
                         title="Vous avez déja pris un rendez-vous",
