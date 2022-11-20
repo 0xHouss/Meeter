@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import math
 from os import environ as env
 from typing import Union
+from pytz import timezone as pytimezone
 
 import nextcord
 from google.oauth2.credentials import Credentials
@@ -15,15 +16,42 @@ from nextcord import (Button, ButtonStyle, Colour,
 
 from nextcord.ext import commands, application_checks
 
+from io import StringIO
+from html.parser import HTMLParser
+
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.reset()
+        self.strict = False
+        self.convert_charrefs = True
+        self.text = StringIO()
+
+    def handle_data(self, d):
+        self.text.write(d)
+
+    def get_data(self):
+        return self.text.getvalue()
+
+
+def strip_tags(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
+
 GOOGLE_CREDITENTIALS = eval(env['GOOGLE_CREDITENTIALS'])
 GOOGLE_TOKEN = eval(env['GOOGLE_TOKEN'])
 SCOPES = [env['SCOPES'],]
 GOOGLE_CALENDAR_ID = env['GOOGLE_CALENDAR_ID']
+UTC = env['UTC']
 
 CLIENT_ROLE = int(env['CLIENT_ROLE'])
 MODERATION_ROLE = int(env['MODERATION_ROLE'])
+GUILD_ID = int(env['GUILD_ID'])
 
-utc = timedelta(hours=1) - (datetime.now() - datetime.utcnow())
+
 
 class Calendar():
     def __init__(self) -> None:
@@ -41,18 +69,17 @@ class Calendar():
     def list(self, timeMin: Union[datetime, None] = None, timeMax: Union[datetime, None] = None):
         min = None
         if isinstance(timeMin, datetime):
-            min = timeMin.isoformat() + 'Z'
+            min = timeMin.isoformat()
 
         max = None
         if isinstance(timeMax, datetime):
-            max = timeMax.isoformat() + 'Z'
+            max = timeMax.isoformat()
 
         result = self.service.events().list(
             calendarId=GOOGLE_CALENDAR_ID,
             timeMin=min,
             timeMax=max,
-            singleEvents=True,
-            orderBy='startTime').execute()
+            singleEvents=True).execute()
         return result
 
     def insert(self, body: dict):
@@ -66,29 +93,29 @@ class Calendar():
 
 class CalendarEvent():
     def __init__(self, event) -> None:
-        self.kind = event.get('kind', None)
-        self.etag = event.get('etag', None)
-        self.id = event.get('id', None)
-        self.status = event.get('status', None)
-        self.htmlLink = event.get('htmlLink', None)
-        self.created = event.get('created', None)
-        self.updated = event.get('updated', None)
-        self.summary = event.get('summary', "")
-        self.description = event.get('description', "")
-        self.creator = event.get('creator', None)
-        self.organizer = event.get('organizer', None)
-        self.start, self.end, self.offset, self.timezone = self.event_strp(event)
-        print(self.offset)
-        self.day = self.get_weekday(self.start.weekday())
-        self.iCalUID = event.get('iCalUID', None)
-        self.sequence = event.get('sequence', None)
-        self.reminders = event.get('reminders', None)
-        self.eventType = event.get('eventType', None)
-        self.colorId = event.get('colorId', None)
-        self.location = event.get('location', "")
+        if event:
+            self.kind = event.get('kind', None)
+            self.etag = event.get('etag', None)
+            self.id = event.get('id', None)
+            self.status = event.get('status', None)
+            self.htmlLink = event.get('htmlLink', None)
+            self.created = event.get('created', None)
+            self.updated = event.get('updated', None)
+            self.summary = event.get('summary', "")
+            self.description = event.get('description', "")
+            self.creator = event.get('creator', None)
+            self.organizer = event.get('organizer', None)
+            self.start, self.end, self.offset, self.timezone = self.event_strp(event)
+            self.day = self.get_weekday(self.start.weekday())
+            self.iCalUID = event.get('iCalUID', None)
+            self.sequence = event.get('sequence', None)
+            self.reminders = event.get('reminders', None)
+            self.eventType = event.get('eventType', None)
+            self.colorId = event.get('colorId', None)
+            self.location = event.get('location', "")
 
-        if self.summary == "disponible":
-            self.split_dispo()
+            if self.summary == "disponible":
+                self.split_dispo()
 
     def build(self):
         event = {
@@ -105,11 +132,11 @@ class CalendarEvent():
             'creator': self.creator,
             'organizer': self.organizer, 
             'start': {
-                'dateTime': self.start.isoformat()+self.offset, 
+                'dateTime': self.start.isoformat(), 
                 'timeZone': self.timezone
                 }, 
             'end': {
-                'dateTime': self.end.isoformat()+self.offset, 
+                'dateTime': self.end.isoformat(), 
                 'timeZone': self.timezone
                 }, 
             'iCalUID': self.iCalUID, 
@@ -121,7 +148,7 @@ class CalendarEvent():
         return event
 
     def check_event(self) -> bool:
-        now = datetime.utcnow() + utc  # 'Z' indicates UTC time
+        now = datetime.now(pytimezone(UTC))  # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
 
@@ -160,14 +187,14 @@ class CalendarEvent():
         start = event['start'].get('dateTime', event['start'].get('date'))
         offset = start[-6:]
         start = start[:-6]
-        start = self.time_strp(start)
+        start = pytimezone(UTC).localize(self.time_strp(start))
 
         end = event['end'].get('dateTime', event['end'].get('date'))
         end = end[:-6]
-        end = self.time_strp(end)
+        end = pytimezone(UTC).localize(self.time_strp(end))
 
         timezone: str = event['start'].get('timeZone')
-        return start, end, offset, timezone
+        return (start), end, offset, timezone
 
     def get_weekday(self, number: int) -> str:
         weekdays = {
@@ -210,7 +237,7 @@ class TakeMeetingView(ui.View):
 
     async def take_meeting(self, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
-        now = datetime.utcnow() + utc + utc # 'Z' indicates UTC time
+        now = datetime.now(pytimezone(UTC)) # 'Z' indicates UTC time
         events_result = calendar.list(now, now + timedelta(days=7))
         events = events_result.get('items', [])
 
@@ -224,7 +251,7 @@ class TakeMeetingView(ui.View):
                         slots[split_event.day] = []
                         slots[split_event.day].append(split_event)
             else:
-                if events.summary == "Créneau libre" and events.start > datetime.utcnow() + utc:
+                if events.summary == "Créneau libre" and events.start > datetime.now(pytimezone(UTC)):
                     if events.day not in slots:
                         slots[events.day] = []
                     slots[events.day].append(events)
@@ -388,13 +415,14 @@ class Form(ui.Modal):
         self.event = event
 
     async def callback(self, interaction: Interaction) -> None:
-        values = {
-            "sujet": self.summary.value,
-            "nom": self.name.value,
-            "medias": self.medias.value,
-            "horaires": self.slots.value,
-            "description": self.description.value,
-        }
+        values = [
+            strip_tags(self.summary.value).replace("\n", " ").replace("\\n", " "),
+            strip_tags(self.name.value).replace("\n", " ").replace("\\n", " "),
+            strip_tags(self.medias.value).replace("\n", " ").replace("\\n", " "),
+            strip_tags(self.slots.value).replace("\n", " ").replace("\\n", " "),
+            strip_tags(self.description.value).replace("\n", " ").replace("\\n", " "),
+            str(interaction.user.id) #type: ignore
+        ]
 
         starting_time = self.event.start.strftime("%H:%M")
         ending_time = self.event.end.strftime("%H:%M")
@@ -411,9 +439,8 @@ class Form(ui.Modal):
         await self.event.cancel_rdv()
         self.stop()
 
-
 class ConfirmMeetingView(ui.View):
-    def __init__(self, event: CalendarEvent, infos: dict = {}):
+    def __init__(self, event: CalendarEvent, infos: list = []):
         super().__init__(timeout = 60)
         self.value = None
         self.event = event
@@ -425,16 +452,12 @@ class ConfirmMeetingView(ui.View):
     @ui.button(label="Confirmer", style=ButtonStyle.green)
     async def confirm(self, button: ui.Button, interaction: Interaction) -> None:  
         await interaction.response.defer(ephemeral=True)
-        description = ""
-        
-        for info in self.infos:
-            description += f"{info}: {self.infos[info]}\n\n"
+        description = "\n\n".join([info for info in self.infos if info])
 
         user = interaction.user
-        description += f"user_id: {user.id}\n\n"
-        interaction_channel = interaction.channel
+        interaction_channel = interaction.channel 
 
-        self.event.summary = f"Rendez-vous ({user})"
+        self.event.summary = f"Rendez-vous ({interaction.user})"
         self.event.description = description
         self.event.reminders = {
             'useDefault': False,
@@ -507,7 +530,7 @@ class ConfirmMeetingView(ui.View):
         if not message:
             message = msg
 
-        await MeetingView(None).schedule_alert(interaction_channel.guild, user, self.event, message) #type: ignore
+        await MeetingView(self.event).schedule_alert(interaction_channel.guild, user, message) #type: ignore
             
 
     # This one is similar to the confirmation button except sets the inner value to `False`
@@ -524,22 +547,23 @@ class ConfirmMeetingView(ui.View):
 
 
 class MeetingView(ui.View):
-    def __init__(self, event: Union[CalendarEvent, None]):
+    def __init__(self, event: CalendarEvent):
         super().__init__(timeout=None)
         self.event = event
 
-    async def schedule_alert(self, guild, user, event: CalendarEvent, message: PartialInteractionMessage) -> None:
-        wait = int((event.start-(datetime.utcnow() + utc)).total_seconds())
+    async def schedule_alert(self, guild, user, message: PartialInteractionMessage) -> None:
+        
+        await message.edit(view=self)
+        wait = int((self.event.start-(datetime.now(pytimezone(UTC)))).total_seconds())
         if wait > 600:
             await sleep(wait - 600)
-
-        if event.location:
-            rdv_channel = guild.get_channel(int(event.location))
+        if self.event.location:
+            rdv_channel = guild.get_channel(int(self.event.location))
 
             if str(rdv_channel.category) == "Rendez-vous":  
-                if event.check_event():
+                if self.event.check_event():
                     wait = int(
-                        (event.start-(datetime.utcnow() + utc)).total_seconds())
+                        (self.event.start-(datetime.now(pytimezone(UTC)))).total_seconds())
                     embed = Embed(
                             title=f"Le rendez-vous est dans {int(math.ceil(wait / 60))} minutes",
                             color=Colour.blue()
@@ -554,18 +578,18 @@ class MeetingView(ui.View):
                     )
                     await rdv_channel.send("@here", embed=embed)  
             else:
-                await event.cancel_rdv()
+                await self.event.cancel_rdv()
                 return
         else:
-            await event.cancel_rdv()
+            await self.event.cancel_rdv()
             return
         
 
-        if event.location:
-            rdv_channel = guild.get_channel(int(event.location))
+        if self.event.location:
+            rdv_channel = guild.get_channel(int(self.event.location))
 
             if str(rdv_channel.category) == "Rendez-vous":  
-                if event.check_event(): 
+                if self.event.check_event():
                     embed = Embed(
                         title="Le rendez-vous a commencé",
                         color=Colour.green()
@@ -574,7 +598,7 @@ class MeetingView(ui.View):
                     await rdv_channel.send("@here", embed=embed) 
                     await user.add_roles(guild.get_role(CLIENT_ROLE))  
                     wait = int(
-                        (event.end-(datetime.utcnow() + utc)).total_seconds())
+                        (self.event.end-(datetime.now(pytimezone(UTC)))).total_seconds())
                     await sleep(wait)
                     embed = Embed(
                         title="Le rendez-vous est fini",
@@ -593,10 +617,10 @@ class MeetingView(ui.View):
 
                     await rdv_channel.send("@here", embed=embed) 
             else:
-                await event.cancel_rdv()
+                await self.event.cancel_rdv()
                 return
         else:
-            await event.cancel_rdv()
+            await self.event.cancel_rdv()
             return
 
     async def get_thread_author(self, channel: TextChannel) -> Union[Member, User]:
@@ -605,7 +629,7 @@ class MeetingView(ui.View):
         user: Union[Member, User] = history_flat[0].mentions[0]
         return user
 
-    async def close_help_thread(self, interaction: Interaction) -> None:
+    async def close_meeting(self, interaction: Interaction) -> None:
         embed_reply = Embed(
             title="Ce salon a été fermé",
             colour=Colour.dark_theme(),
@@ -633,7 +657,7 @@ class MeetingView(ui.View):
         await channel.edit(category=utils.get(channel.guild.categories, name="Archives"), sync_permissions=True) #type: ignore
         await utils.get(interaction.guild.channels, name="logs").send(embed=embed_log) #type: ignore
         if self.event:
-            if datetime.utcnow() + utc < self.event.start:
+            if datetime.now(pytimezone(UTC)) < self.event.start:
                 await self.event.cancel_rdv()
 
 
@@ -647,7 +671,7 @@ class MeetingView(ui.View):
         for children in self.children:
             children.disabled = True  # type: ignore
         await interaction.response.edit_message(view=self)
-        await self.close_help_thread(interaction)
+        await self.close_meeting(interaction)
 
 
 class AcceptConditionsView(ui.View):
@@ -704,20 +728,25 @@ class Meetings(commands.Cog):
     async def create_views(self):
         self.client.rdv_view_set = True #type: ignore
         self.client.add_view(TakeMeetingView())
-        self.client.add_view(MeetingView(None))
+        self.client.add_view(MeetingView(CalendarEvent({})))
         
 
     async def get_alerts(self):
         await self.client.wait_until_ready()
-        events = calendar.list(timeMin=(datetime.utcnow() + utc))
+        events = calendar.list(timeMin=(datetime.now(pytimezone(UTC)) - timedelta(minutes=30)))
         events = events.get('items', [])
         for event in events:
             event = CalendarEvent(event)
-            if event.summary.startswith("Rendez-vous"):
-                infos = event.description.split("\n\n")
-                print(infos)
+            if event.summary.startswith("Rendez-vous") and datetime.now(pytimezone(UTC)) < event.end:
+                description = event.description.split("\n\n")
+                channel = self.client.get_channel(int(event.location))
+                history = channel.history(oldest_first=True, limit=1) #type: ignore
+                history_flat = await history.flatten()
+                message = history_flat[0]  
+                guild = self.client.get_guild(GUILD_ID)
+                await MeetingView(event).schedule_alert(guild, guild.get_member(int(description[len(description)-1])), message)  # type: ignore
                 # await MeetingView(None).schedule_alert()
-
+                # TO FINISH
 
 
         
