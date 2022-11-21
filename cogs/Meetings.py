@@ -734,7 +734,7 @@ class Meetings(commands.Cog):
         await interaction.response.send_message(embed=embed, view=TakeMeetingView())
 
 
-    @application_checks.is_owner()
+    """@application_checks.is_owner()
     @slash_command(name="clear_calendar")
     async def clear_calendar(self, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -751,7 +751,7 @@ class Meetings(commands.Cog):
         for archived_meeting in utils.get(interaction.guild.categories, name="Archives").channels: #type: ignore
             await archived_meeting.delete()
 
-        await interaction.response.send_message(embed=Embed(title="Les archives ont été purgées", color=nextcord.Colour.green()), ephemeral=True)
+        await interaction.response.send_message(embed=Embed(title="Les archives ont été purgées", color=nextcord.Colour.green()), ephemeral=True)"""
 
 def setup(client):
     client.add_cog(Meetings(client))
