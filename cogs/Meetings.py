@@ -327,7 +327,7 @@ class TimeSlotsDropdown(ui.Select):
                             description=f"Etes vous sur de vouloir reserver le rendez-vous de {event.day} de {starting_time} a {ending_time}?",
                             color=Colour.blue())
 
-                await interaction.followup.send(embed=embed, view=ConfirmMeetingView(event), ephemeral=True)
+                await interaction.followup.send(embed=embed, view=ConfirmMeetingView(event, [str(interaction.user.id)]), ephemeral=True)
                 self.view.stop() # type: ignore
         else:
             if interaction.guild.get_role(CLIENT_ROLE_ID) not in interaction.user.roles: #type: ignore
@@ -441,7 +441,7 @@ class ConfirmMeetingView(ui.View):
         }
 
         channel = None
-        content = "@here" #type: ignore
+        content = interaction.user.mention #type: ignore
         meetView = MeetingView(self.event)
         message = None
         for rdv_channel in interaction_channel.category.channels: #type: ignore
@@ -450,6 +450,7 @@ class ConfirmMeetingView(ui.View):
                 if author == user:
                     channel = rdv_channel
                     meetView = None
+                    content = "@here"
                     history = await channel.history(oldest_first=True, limit=1).flatten() #type: ignore
                     message = history[0]  
                     await message.edit(view=MeetingView(self.event))
@@ -460,6 +461,7 @@ class ConfirmMeetingView(ui.View):
                 if author == user:
                     channel = rdv_channel
                     meetView = None
+                    content = "@here"
                     await channel.edit(category=interaction_channel.category, sync_permissions=True) #type: ignore
                     await channel.set_permissions(author, view_channel=True) #type: ignore
                     await channel.purge(limit=1)  #type: ignore
@@ -592,8 +594,9 @@ class MeetingView(ui.View):
             return
 
     async def get_meeting_author(self, channel: TextChannel) -> Union[Member, User]:
-        history = await channel.history(oldest_first=True, limit=1).flatten()
-        user: Union[Member, User] = history[0].mentions[0]
+        history = channel.history(oldest_first=True, limit=1)
+        history_flat = await history.flatten()
+        user = history_flat[0].mentions[0]
         return user
 
     async def close_meeting(self, interaction: Interaction) -> None:
@@ -734,7 +737,7 @@ class Meetings(commands.Cog):
         await interaction.response.send_message(embed=embed, view=TakeMeetingView())
 
 
-    @application_checks.is_owner()
+    """@application_checks.is_owner()
     @slash_command(name="clear_calendar")
     async def clear_calendar(self, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -751,7 +754,7 @@ class Meetings(commands.Cog):
         for archived_meeting in utils.get(interaction.guild.categories, name="Archives").channels: #type: ignore
             await archived_meeting.delete()
 
-        await interaction.response.send_message(embed=Embed(title="Les archives ont été purgées", color=nextcord.Colour.green()), ephemeral=True)
+        await interaction.response.send_message(embed=Embed(title="Les archives ont été purgées", color=nextcord.Colour.green()), ephemeral=True)"""
 
 def setup(client):
     client.add_cog(Meetings(client))
